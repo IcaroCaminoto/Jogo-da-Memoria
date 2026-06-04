@@ -4,8 +4,8 @@ from jogo_memoria import JogoMemoria
 pygame.init()
 
 # Tela
-LARGURA = 800
-ALTURA = 600
+LARGURA = 1000
+ALTURA = 700
 tela = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Jogo da Memória")
 
