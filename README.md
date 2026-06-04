@@ -1,2 +1,2 @@
-# Jogo-de-Gestao-de-Hoteis
-Repositório do melhor jogo de gestão de hotéis do Brasil
+# Jogo-do-que-mesmo?
+Repositório do melhor jogo de memória do Brasil
