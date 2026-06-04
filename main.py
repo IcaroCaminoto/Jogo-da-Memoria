@@ -1,5 +1,7 @@
 import pygame
 from jogo_memoria import JogoMemoria
+# 1. IMPORTAR AS FUNÇÕES DO SEU FICHEIRO loguin.py
+from loguin import tela_login, salvar_dados
 
 pygame.init()
 
@@ -20,14 +22,15 @@ VERDE = (0, 200, 0)
 AMARELO = (255, 255, 0)
 VERMELHO = (200, 0, 0)
 
+# 2. CHAMAR A TELA DE LOGIN ANTES DO MENU E GUARDAR O NOME
+nome_jogador = tela_login(tela)
+
 # Jogo
 estado = "menu"
 nivel_escolhido = "facil"
 jogo = None
 
-
 # Grid configurações por dificuldade
-
 GRID_CONFIG = {
     #  nivel    : (colunas, tam_carta, margem)
     "facil"  : (4,  100, 12),   # 16 cartas  → 4×4
@@ -44,8 +47,8 @@ HUD_ALTURA = 60
 
 clock = pygame.time.Clock()
 rodando = True
-# Helpers de layout
 
+# Helpers de layout
 def calcular_offset(num_cartas):
     """Retorna (offset_x, offset_y) para centralizar o grid na tela."""
     linhas = (num_cartas + COLUNAS - 1) // COLUNAS
@@ -65,7 +68,6 @@ def pos_carta(i):
     return pygame.Rect(x, y, TAM, TAM)
 
 # Desenho do jogo
-
 def desenhar():
     tela.fill((30, 30, 30))
 
@@ -83,16 +85,18 @@ def desenhar():
         else:
             pygame.draw.rect(tela, (200, 0, 0), rect, border_radius=6)
 
-    # HUD
+    # HUD (Mostra agora também o nome do jogador)
+    texto_nome   = fonte.render(f"Jogador: {nome_jogador}", True, BRANCO)
     texto_pontos = fonte.render(f"Pontos: {jogo.pontuacao()}", True, BRANCO)
     texto_vida   = fonte.render(f"Vidas: {jogo.vida_total()}",  True, BRANCO)
-    tela.blit(texto_pontos, (10, 10))
-    tela.blit(texto_vida,   (10, 40))
+    
+    tela.blit(texto_nome,   (10, 10))
+    tela.blit(texto_pontos, (10, 40))
+    tela.blit(texto_vida,   (10, 70))
 
     pygame.display.flip()
 
 # Tela inicial
-
 def desenhar_tela_inicial():
     tela.fill((20, 20, 40))
 
@@ -171,13 +175,16 @@ while rodando:
             pygame.time.delay(500)
             jogo.verificar()
 
+        # 3. GRAVAR OS DADOS AO VENCER OU PERDER
         if jogo.venceu():
             print("VOCÊ VENCEU!")
+            salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
             pygame.time.delay(2000)
             rodando = False
 
         if jogo.perdeu():
             print("VOCÊ PERDEU!")
+            salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
             pygame.time.delay(2000)
             rodando = False
 
