@@ -57,6 +57,7 @@ def desenhar():
         else:
             pygame.draw.rect(tela, (200, 0, 0), rect)
 
+
     texto_pontos = fonte.render(f"Pontos: {jogo.pontuacao()}", True, (255, 255, 255))
     texto_vida = fonte.render(f"Vidas: {jogo.vida_total()}", True, (255, 255, 255))
     tela.blit(texto_pontos, (10, 10))
@@ -140,7 +141,7 @@ while rodando:
                     LINHAS = len(jogo.cartas) // COLUNAS
                     estado = "jogando"
 
-            elif estado == "jogando":          # ← ADICIONE ISSO AQUI
+            elif estado == "jogando":
                 clique(pygame.mouse.get_pos())
 
     # --- Desenho ---
