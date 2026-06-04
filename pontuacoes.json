@@ -10,5 +10,47 @@
         "horario": "04/06/2026 14:44:30",
         "nivel": "medio",
         "pontuacao": 0
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 14:54:35",
+        "nivel": "dificil",
+        "pontuacao": 0
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 15:07:08",
+        "nivel": "medio",
+        "pontuacao": 0
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 15:16:34",
+        "nivel": "facil",
+        "pontuacao": 200
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 15:44:42",
+        "nivel": "medio",
+        "pontuacao": 0
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 15:45:14",
+        "nivel": "facil",
+        "pontuacao": 600
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 15:45:54",
+        "nivel": "facil",
+        "pontuacao": 500
+    },
+    {
+        "nome": "souza",
+        "horario": "04/06/2026 15:47:28",
+        "nivel": "facil",
+        "pontuacao": 500
     }
 ]
