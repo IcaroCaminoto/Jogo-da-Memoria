@@ -48,6 +48,24 @@ HUD_ALTURA = 60
 clock = pygame.time.Clock()
 rodando = True
 
+# ─── Novas Funções de Efeitos Visuais ─────────────────────────────────────────
+
+def desenhar_fundo_cassino():
+    """Desenha um gradiente verde escuro lembrando uma mesa de feltro premium."""
+    cor_topo = (15, 60, 30)
+    cor_base = (5, 20, 10)
+    for y in range(ALTURA):
+        r = cor_topo[0] + (cor_base[0] - cor_topo[0]) * y // ALTURA
+        g = cor_topo[1] + (cor_base[1] - cor_topo[1]) * y // ALTURA
+        b = cor_topo[2] + (cor_base[2] - cor_topo[2]) * y // ALTURA
+        pygame.draw.line(tela, (r, g, b), (0, y), (LARGURA, y))
+
+def desenhar_sombra(rect):
+    """Cria uma sombra semi-transparente para dar efeito 3D às cartas."""
+    sombra = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+    pygame.draw.rect(sombra, (0, 0, 0, 130), sombra.get_rect(), border_radius=8)
+    tela.blit(sombra, (rect.x + 6, rect.y + 6))
+
 # ─── Helpers de layout ────────────────────────────────────────────────────────
 
 def calcular_offset(num_cartas):
@@ -69,22 +87,59 @@ def pos_carta(i):
 # ─── Desenhos ─────────────────────────────────────────────────────────────────
 
 def desenhar():
-    tela.fill((30, 30, 30))
-    fonte_carta = pygame.font.SysFont(None, max(20, TAM // 3))
+    desenhar_fundo_cassino() # Novo fundo luxuoso
+    fonte_carta = pygame.font.SysFont("georgia", max(25, TAM // 2), bold=True) # Fonte mais elegante
 
     for i in range(len(jogo.cartas)):
         rect = pos_carta(i)
+        
+        # Sombra da carta (efeito 3D flutuante)
+        desenhar_sombra(rect)
+
         if jogo.reveladas[i]:
-            pygame.draw.rect(tela, (0, 200, 0), rect, border_radius=6)
-            texto = fonte_carta.render(str(jogo.cartas[i]), True, (0, 0, 0))
+            # FRENTE DA CARTA
+            pygame.draw.rect(tela, BRANCO, rect, border_radius=8) # Base branca
+            # Borda interna fina
+            pygame.draw.rect(tela, (220, 220, 220), rect.inflate(-10, -10), width=1, border_radius=6) 
+            
+            texto = fonte_carta.render(str(jogo.cartas[i]), True, (30, 30, 30))
             tela.blit(texto, (rect.x + rect.width  // 2 - texto.get_width()  // 2,
                               rect.y + rect.height // 2 - texto.get_height() // 2))
-        else:
-            pygame.draw.rect(tela, (200, 0, 0), rect, border_radius=6)
+            
+            # Mini índices nos cantos (efeito real de baralho)
+            fonte_mini = pygame.font.SysFont("georgia", max(12, TAM // 5), bold=True)
+            texto_mini = fonte_mini.render(str(jogo.cartas[i]), True, (50, 50, 50))
+            tela.blit(texto_mini, (rect.x + 8, rect.y + 6))
+            # Índice invertido no canto inferior direito
+            texto_mini_inv = pygame.transform.rotate(texto_mini, 180)
+            tela.blit(texto_mini_inv, (rect.right - 8 - texto_mini_inv.get_width(), rect.bottom - 6 - texto_mini_inv.get_height()))
 
+        else:
+            # VERSO DA CARTA (Estilo Baralho Clássico)
+            pygame.draw.rect(tela, BRANCO, rect, border_radius=8) # Borda branca externa
+            
+            # Miolo do verso (Vermelho rico ou Azul escuro)
+            cor_verso = (170, 20, 35) # Vermelho Cassino
+            rect_interno = rect.inflate(-16, -16)
+            pygame.draw.rect(tela, cor_verso, rect_interno, border_radius=4)
+            
+            # Detalhes em ouro/amarelo no verso da carta
+            pygame.draw.rect(tela, (218, 165, 32), rect_interno, width=2, border_radius=4)
+            
+            # Círculo decorativo no centro
+            pygame.draw.circle(tela, (218, 165, 32), rect.center, rect.width // 4, 2)
+            pygame.draw.circle(tela, (218, 165, 32), rect.center, rect.width // 6, 1)
+
+    # HUD / Informações
     texto_nome   = fonte.render(f"Jogador: {nome_jogador}", True, BRANCO)
     texto_pontos = fonte.render(f"Pontos: {jogo.pontuacao()}", True, BRANCO)
     texto_vida   = fonte.render(f"Vidas: {jogo.vida_total()}", True, BRANCO)
+    
+    # Sombra suave nos textos do HUD
+    tela.blit(fonte.render(f"Jogador: {nome_jogador}", True, (0,0,0)), (12, 12))
+    tela.blit(fonte.render(f"Pontos: {jogo.pontuacao()}", True, (0,0,0)), (12, 42))
+    tela.blit(fonte.render(f"Vidas: {jogo.vida_total()}", True, (0,0,0)), (12, 72))
+    
     tela.blit(texto_nome,   (10, 10))
     tela.blit(texto_pontos, (10, 40))
     tela.blit(texto_vida,   (10, 70))
@@ -124,27 +179,23 @@ def desenhar_tela_inicial():
 
 
 def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
-                              subtitulo_txt, pontuacao, tempo_ms):
+                             subtitulo_txt, pontuacao, tempo_ms):
     """
     Renderiza o painel semi-transparente de resultado no centro da tela.
     Usa uma animação de escala baseada no tempo decorrido desde o fim.
     Retorna o pygame.Rect do botão 'Jogar Novamente'.
     """
-    # Animação de entrada (escala de 0 → 1 em 400 ms)
     prog = min(1.0, tempo_ms / 400)
     escala = 1 - (1 - prog) ** 3          # ease-out cúbico
 
-    # Painel base
     pw, ph = 560, 340
     px = (LARGURA - pw) // 2
     py = (ALTURA  - ph) // 2
 
-    # Superfície com alpha para overlay escuro
     overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 160))
     tela.blit(overlay, (0, 0))
 
-    # Painel animado
     sw = int(pw * escala)
     sh = int(ph * escala)
     sx = (LARGURA - sw) // 2
@@ -155,25 +206,19 @@ def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
     tela.blit(painel, (sx, sy))
     pygame.draw.rect(tela, cor_borda, (sx, sy, sw, sh), 4, border_radius=16)
 
-    if prog < 1.0:          # ainda animando — não desenha texto ainda
+    if prog < 1.0:          
         pygame.display.flip()
         return None
 
-    # ── Conteúdo do painel (só após animação completa) ──
-
-    # Título grande
     t_titulo = fonte_grande.render(titulo_txt, True, cor_titulo)
     tela.blit(t_titulo, (LARGURA // 2 - t_titulo.get_width() // 2, py + 30))
 
-    # Subtítulo
     t_sub = fonte_titulo.render(subtitulo_txt, True, BRANCO)
     tela.blit(t_sub, (LARGURA // 2 - t_sub.get_width() // 2, py + 130))
 
-    # Pontuação
     t_pont = fonte.render(f"Pontuação final: {pontuacao} pontos", True, CINZA)
     tela.blit(t_pont, (LARGURA // 2 - t_pont.get_width() // 2, py + 200))
 
-    # Botão "Jogar Novamente"
     btn_rect = pygame.Rect(LARGURA // 2 - 140, py + 260, 280, 55)
     mouse_pos = pygame.mouse.get_pos()
     cor_btn = (50, 180, 50) if btn_rect.collidepoint(mouse_pos) else (30, 130, 30)
@@ -187,10 +232,8 @@ def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
 
 
 def desenhar_tela_vitoria(tempo_ms):
-    """Tela de vitória — painel dourado/verde com estrelas."""
-    desenhar()   # mantém o tabuleiro visível ao fundo
+    desenhar()   
 
-    # Partículas de estrela (simples, baseadas no tempo)
     for k in range(12):
         angulo = (tempo_ms / 800 + k * 30) * math.pi / 180
         r = 260 + 20 * math.sin(tempo_ms / 300 + k)
@@ -211,10 +254,8 @@ def desenhar_tela_vitoria(tempo_ms):
 
 
 def desenhar_tela_derrota(tempo_ms):
-    """Tela de derrota — painel vermelho escuro."""
-    desenhar()   # mantém o tabuleiro visível ao fundo
+    desenhar()   
 
-    # Efeito de tremor leve no início
     if tempo_ms < 600:
         shake = int(6 * math.sin(tempo_ms / 40) * max(0, 1 - tempo_ms / 600))
         tela.scroll(shake, 0)
@@ -249,7 +290,6 @@ def clique(pos):
             jogo.selecionar(i)
 
 def reiniciar_jogo():
-    """Volta ao menu principal e reseta o estado."""
     global estado, jogo, timer_fim, COLUNAS, TAM, MARGEM
     estado = "menu"
     jogo   = None
@@ -280,8 +320,6 @@ while rodando:
                 clique(pos)
 
             elif estado in ("vitoria", "derrota"):
-                # Verifica clique no botão "Jogar Novamente" (rect calculado no desenho)
-                # Como o botão está no painel, calculamos o rect manualmente
                 py_painel = (ALTURA - 340) // 2
                 btn_rect = pygame.Rect(LARGURA // 2 - 140, py_painel + 260, 280, 55)
                 if btn_rect.collidepoint(pos):
