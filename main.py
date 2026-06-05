@@ -1,5 +1,6 @@
 import pygame
 import math
+import random
 from jogo_memoria import JogoMemoria
 from loguin import tela_login, salvar_dados
 
@@ -31,7 +32,9 @@ nome_jogador = tela_login(tela)
 estado = "menu"
 nivel_escolhido = "facil"
 jogo = None
-timer_fim = 0          # tick em que venceu/perdeu (para animação)
+timer_fim = 0          
+tempo_espera = 0     # Controle de tempo não-bloqueante para virar a carta
+particulas = []      # Lista para guardar as estrelinhas da explosão
 
 # Grid configurações por dificuldade
 GRID_CONFIG = {
@@ -48,10 +51,9 @@ HUD_ALTURA = 60
 clock = pygame.time.Clock()
 rodando = True
 
-# ─── Novas Funções de Efeitos Visuais ─────────────────────────────────────────
+# ─── Funções de Efeitos Visuais ───────────────────────────────────────────────
 
 def desenhar_fundo_cassino():
-    """Desenha um gradiente verde escuro lembrando uma mesa de feltro premium."""
     cor_topo = (15, 60, 30)
     cor_base = (5, 20, 10)
     for y in range(ALTURA):
@@ -61,10 +63,38 @@ def desenhar_fundo_cassino():
         pygame.draw.line(tela, (r, g, b), (0, y), (LARGURA, y))
 
 def desenhar_sombra(rect):
-    """Cria uma sombra semi-transparente para dar efeito 3D às cartas."""
     sombra = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
     pygame.draw.rect(sombra, (0, 0, 0, 130), sombra.get_rect(), border_radius=8)
     tela.blit(sombra, (rect.x + 6, rect.y + 6))
+
+def gerar_explosao(i):
+    """Gera partículas explodindo a partir do centro da carta 'i'."""
+    rect = pos_carta(i)
+    cx, cy = rect.center
+    for _ in range(30): # 30 estrelinhas por carta
+        dx = random.uniform(-8, 8)
+        dy = random.uniform(-8, 8)
+        vida_max = random.randint(30, 60)
+        tamanho = random.randint(3, 8)
+        cor = random.choice([AMARELO, BRANCO, (255, 215, 0), (255, 255, 150)])
+        # [x, y, vel_x, vel_y, vida_atual, cor, tamanho, vida_maxima]
+        particulas.append([cx, cy, dx, dy, vida_max, cor, tamanho, vida_max])
+
+def atualizar_e_desenhar_particulas():
+    """Anima e desenha as partículas das explosões."""
+    for p in particulas[:]:
+        p[0] += p[2] # Atualiza posição X
+        p[1] += p[3] # Atualiza posição Y
+        p[4] -= 1    # Diminui a vida
+        
+        p[3] += 0.3  # Adiciona gravidade (as estrelas caem com o tempo)
+        
+        if p[4] <= 0:
+            particulas.remove(p)
+        else:
+            escala = p[4] / p[7]
+            tam_atual = max(1, int(p[6] * escala)) # Encolhe com o tempo
+            pygame.draw.circle(tela, p[5], (int(p[0]), int(p[1])), tam_atual)
 
 # ─── Helpers de layout ────────────────────────────────────────────────────────
 
@@ -87,55 +117,39 @@ def pos_carta(i):
 # ─── Desenhos ─────────────────────────────────────────────────────────────────
 
 def desenhar():
-    desenhar_fundo_cassino() # Novo fundo luxuoso
-    fonte_carta = pygame.font.SysFont("georgia", max(25, TAM // 2), bold=True) # Fonte mais elegante
+    desenhar_fundo_cassino()
+    fonte_carta = pygame.font.SysFont("georgia", max(25, TAM // 2), bold=True)
 
     for i in range(len(jogo.cartas)):
         rect = pos_carta(i)
-        
-        # Sombra da carta (efeito 3D flutuante)
         desenhar_sombra(rect)
 
-        if jogo.reveladas[i]:
-            # FRENTE DA CARTA
-            pygame.draw.rect(tela, BRANCO, rect, border_radius=8) # Base branca
-            # Borda interna fina
+        if jogo.reveladas[i] or (i in jogo.selecionadas):
+            pygame.draw.rect(tela, BRANCO, rect, border_radius=8)
             pygame.draw.rect(tela, (220, 220, 220), rect.inflate(-10, -10), width=1, border_radius=6) 
             
             texto = fonte_carta.render(str(jogo.cartas[i]), True, (30, 30, 30))
             tela.blit(texto, (rect.x + rect.width  // 2 - texto.get_width()  // 2,
                               rect.y + rect.height // 2 - texto.get_height() // 2))
             
-            # Mini índices nos cantos (efeito real de baralho)
             fonte_mini = pygame.font.SysFont("georgia", max(12, TAM // 5), bold=True)
             texto_mini = fonte_mini.render(str(jogo.cartas[i]), True, (50, 50, 50))
             tela.blit(texto_mini, (rect.x + 8, rect.y + 6))
-            # Índice invertido no canto inferior direito
             texto_mini_inv = pygame.transform.rotate(texto_mini, 180)
             tela.blit(texto_mini_inv, (rect.right - 8 - texto_mini_inv.get_width(), rect.bottom - 6 - texto_mini_inv.get_height()))
-
         else:
-            # VERSO DA CARTA (Estilo Baralho Clássico)
-            pygame.draw.rect(tela, BRANCO, rect, border_radius=8) # Borda branca externa
-            
-            # Miolo do verso (Vermelho rico ou Azul escuro)
-            cor_verso = (170, 20, 35) # Vermelho Cassino
+            pygame.draw.rect(tela, BRANCO, rect, border_radius=8)
+            cor_verso = (170, 20, 35) 
             rect_interno = rect.inflate(-16, -16)
             pygame.draw.rect(tela, cor_verso, rect_interno, border_radius=4)
-            
-            # Detalhes em ouro/amarelo no verso da carta
             pygame.draw.rect(tela, (218, 165, 32), rect_interno, width=2, border_radius=4)
-            
-            # Círculo decorativo no centro
             pygame.draw.circle(tela, (218, 165, 32), rect.center, rect.width // 4, 2)
             pygame.draw.circle(tela, (218, 165, 32), rect.center, rect.width // 6, 1)
 
-    # HUD / Informações
     texto_nome   = fonte.render(f"Jogador: {nome_jogador}", True, BRANCO)
     texto_pontos = fonte.render(f"Pontos: {jogo.pontuacao()}", True, BRANCO)
     texto_vida   = fonte.render(f"Vidas: {jogo.vida_total()}", True, BRANCO)
     
-    # Sombra suave nos textos do HUD
     tela.blit(fonte.render(f"Jogador: {nome_jogador}", True, (0,0,0)), (12, 12))
     tela.blit(fonte.render(f"Pontos: {jogo.pontuacao()}", True, (0,0,0)), (12, 42))
     tela.blit(fonte.render(f"Vidas: {jogo.vida_total()}", True, (0,0,0)), (12, 72))
@@ -144,12 +158,9 @@ def desenhar():
     tela.blit(texto_pontos, (10, 40))
     tela.blit(texto_vida,   (10, 70))
 
-    pygame.display.flip()
-
 
 def desenhar_tela_inicial():
     tela.fill((20, 20, 40))
-
     titulo = fonte_titulo.render("Jogo da Memória", True, BRANCO)
     tela.blit(titulo, (LARGURA // 2 - titulo.get_width() // 2, 80))
 
@@ -175,19 +186,10 @@ def desenhar_tela_inicial():
         tela.blit(texto, (rect.x + rect.width  // 2 - texto.get_width()  // 2,
                           rect.y + rect.height // 2 - texto.get_height() // 2))
 
-    pygame.display.flip()
-
-
 def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
                              subtitulo_txt, pontuacao, tempo_ms):
-    """
-    Renderiza o painel semi-transparente de resultado no centro da tela.
-    Usa uma animação de escala baseada no tempo decorrido desde o fim.
-    Retorna o pygame.Rect do botão 'Jogar Novamente'.
-    """
     prog = min(1.0, tempo_ms / 400)
-    escala = 1 - (1 - prog) ** 3          # ease-out cúbico
-
+    escala = 1 - (1 - prog) ** 3          
     pw, ph = 560, 340
     px = (LARGURA - pw) // 2
     py = (ALTURA  - ph) // 2
@@ -207,15 +209,12 @@ def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
     pygame.draw.rect(tela, cor_borda, (sx, sy, sw, sh), 4, border_radius=16)
 
     if prog < 1.0:          
-        pygame.display.flip()
         return None
 
     t_titulo = fonte_grande.render(titulo_txt, True, cor_titulo)
     tela.blit(t_titulo, (LARGURA // 2 - t_titulo.get_width() // 2, py + 30))
-
     t_sub = fonte_titulo.render(subtitulo_txt, True, BRANCO)
     tela.blit(t_sub, (LARGURA // 2 - t_sub.get_width() // 2, py + 130))
-
     t_pont = fonte.render(f"Pontuação final: {pontuacao} pontos", True, CINZA)
     tela.blit(t_pont, (LARGURA // 2 - t_pont.get_width() // 2, py + 200))
 
@@ -226,14 +225,10 @@ def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
     t_btn = fonte.render("Jogar Novamente", True, BRANCO)
     tela.blit(t_btn, (btn_rect.centerx - t_btn.get_width() // 2,
                       btn_rect.centery - t_btn.get_height() // 2))
-
-    pygame.display.flip()
     return btn_rect
-
 
 def desenhar_tela_vitoria(tempo_ms):
     desenhar()   
-
     for k in range(12):
         angulo = (tempo_ms / 800 + k * 30) * math.pi / 180
         r = 260 + 20 * math.sin(tempo_ms / 300 + k)
@@ -243,33 +238,23 @@ def desenhar_tela_vitoria(tempo_ms):
         pygame.draw.circle(tela, AMARELO, (sx, sy), raio)
 
     return _desenhar_painel_central(
-        cor_fundo   = (20, 60, 20),
-        cor_borda   = (0, 220, 80),
-        titulo_txt  = "VITÓRIA!",
-        cor_titulo  = (80, 255, 120),
-        subtitulo_txt = f"Parabéns, {nome_jogador}!",
-        pontuacao   = jogo.pontuacao(),
+        cor_fundo   = (20, 60, 20), cor_borda = (0, 220, 80),
+        titulo_txt  = "VITÓRIA!", cor_titulo = (80, 255, 120),
+        subtitulo_txt = f"Parabéns, {nome_jogador}!", pontuacao = jogo.pontuacao(),
         tempo_ms    = tempo_ms,
     )
-
 
 def desenhar_tela_derrota(tempo_ms):
     desenhar()   
-
     if tempo_ms < 600:
         shake = int(6 * math.sin(tempo_ms / 40) * max(0, 1 - tempo_ms / 600))
         tela.scroll(shake, 0)
-
     return _desenhar_painel_central(
-        cor_fundo   = (60, 10, 10),
-        cor_borda   = (220, 40, 40),
-        titulo_txt  = "FIM DE JOGO",
-        cor_titulo  = (255, 80, 80),
-        subtitulo_txt = f"Tente de novo, {nome_jogador}!",
-        pontuacao   = jogo.pontuacao(),
+        cor_fundo   = (60, 10, 10), cor_borda = (220, 40, 40),
+        titulo_txt  = "FIM DE JOGO", cor_titulo = (255, 80, 80),
+        subtitulo_txt = f"Tente de novo, {nome_jogador}!", pontuacao = jogo.pontuacao(),
         tempo_ms    = tempo_ms,
     )
-
 
 # ─── Helpers de interação ─────────────────────────────────────────────────────
 
@@ -280,8 +265,7 @@ def verificar_clique_botao(pos):
         "dificil": pygame.Rect(660, 440, 180, 60),
     }
     for nivel, rect in botoes_rect.items():
-        if rect.collidepoint(pos):
-            return nivel
+        if rect.collidepoint(pos): return nivel
     return None
 
 def clique(pos):
@@ -290,10 +274,12 @@ def clique(pos):
             jogo.selecionar(i)
 
 def reiniciar_jogo():
-    global estado, jogo, timer_fim, COLUNAS, TAM, MARGEM
+    global estado, jogo, timer_fim, COLUNAS, TAM, MARGEM, tempo_espera, particulas
     estado = "menu"
     jogo   = None
     timer_fim = 0
+    tempo_espera = 0
+    particulas.clear()
     COLUNAS, TAM, MARGEM = GRID_CONFIG["facil"]
 
 # ─── Loop principal ───────────────────────────────────────────────────────────
@@ -317,7 +303,9 @@ while rodando:
                     estado = "jogando"
 
             elif estado == "jogando":
-                clique(pos)
+                # Só permite o clique se o jogo não estiver pausado esperando você ver a carta
+                if tempo_espera == 0:
+                    clique(pos)
 
             elif estado in ("vitoria", "derrota"):
                 py_painel = (ALTURA - 340) // 2
@@ -332,17 +320,28 @@ while rodando:
 
     elif estado == "jogando":
         desenhar()
+        atualizar_e_desenhar_particulas() # Efeito de explosão fica por cima das cartas
 
-        if len(jogo.selecionadas) == 2:
-            pygame.time.delay(500)
+        # Assim que clica na 2ª carta, salva o tempo e verifica se explodiu
+        if len(jogo.selecionadas) == 2 and tempo_espera == 0:
+            tempo_espera = tempo_agora
+            c1, c2 = jogo.selecionadas
+            if jogo.cartas[c1] == jogo.cartas[c2]: # Se acertou o par
+                gerar_explosao(c1)
+                gerar_explosao(c2)
+
+        # Só esconde/verifica as cartas DEPOIS de 1.2 segundos (1200 ms)
+        if tempo_espera > 0 and tempo_agora - tempo_espera > 1200:
             jogo.verificar()
+            tempo_espera = 0
 
-        if jogo.venceu():
+        # Verifica se o jogo acabou
+        if jogo.venceu() and tempo_espera == 0:
             salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
             timer_fim = tempo_agora
             estado = "vitoria"
 
-        elif jogo.perdeu():
+        elif jogo.perdeu() and tempo_espera == 0:
             salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
             timer_fim = tempo_agora
             estado = "derrota"
@@ -355,6 +354,7 @@ while rodando:
         tempo_decorrido = tempo_agora - timer_fim
         desenhar_tela_derrota(tempo_decorrido)
 
+    pygame.display.flip()
     clock.tick(60)
 
 pygame.quit()
