@@ -33,8 +33,11 @@ estado = "menu"
 nivel_escolhido = "facil"
 jogo = None
 timer_fim = 0          
-tempo_espera = 0     # Controle de tempo não-bloqueante para virar a carta
-particulas = []      # Lista para guardar as estrelinhas da explosão
+tempo_espera = 0     
+particulas = []      
+
+# Variável de controle do novo modal de confirmação
+mostrar_confirmacao = False
 
 # Grid configurações por dificuldade
 GRID_CONFIG = {
@@ -68,32 +71,27 @@ def desenhar_sombra(rect):
     tela.blit(sombra, (rect.x + 6, rect.y + 6))
 
 def gerar_explosao(i):
-    """Gera partículas explodindo a partir do centro da carta 'i'."""
     rect = pos_carta(i)
     cx, cy = rect.center
-    for _ in range(30): # 30 estrelinhas por carta
+    for _ in range(30): 
         dx = random.uniform(-8, 8)
         dy = random.uniform(-8, 8)
         vida_max = random.randint(30, 60)
         tamanho = random.randint(3, 8)
         cor = random.choice([AMARELO, BRANCO, (255, 215, 0), (255, 255, 150)])
-        # [x, y, vel_x, vel_y, vida_atual, cor, tamanho, vida_maxima]
         particulas.append([cx, cy, dx, dy, vida_max, cor, tamanho, vida_max])
 
 def atualizar_e_desenhar_particulas():
-    """Anima e desenha as partículas das explosões."""
     for p in particulas[:]:
-        p[0] += p[2] # Atualiza posição X
-        p[1] += p[3] # Atualiza posição Y
-        p[4] -= 1    # Diminui a vida
-        
-        p[3] += 0.3  # Adiciona gravidade (as estrelas caem com o tempo)
-        
+        p[0] += p[2] 
+        p[1] += p[3] 
+        p[4] -= 1    
+        p[3] += 0.3  
         if p[4] <= 0:
             particulas.remove(p)
         else:
             escala = p[4] / p[7]
-            tam_atual = max(1, int(p[6] * escala)) # Encolhe com o tempo
+            tam_atual = max(1, int(p[6] * escala)) 
             pygame.draw.circle(tela, p[5], (int(p[0]), int(p[1])), tam_atual)
 
 # ─── Helpers de layout ────────────────────────────────────────────────────────
@@ -127,11 +125,8 @@ def desenhar():
         if jogo.reveladas[i] or (i in jogo.selecionadas):
             pygame.draw.rect(tela, BRANCO, rect, border_radius=8)
             pygame.draw.rect(tela, (220, 220, 220), rect.inflate(-10, -10), width=1, border_radius=6) 
-            
             texto = fonte_carta.render(str(jogo.cartas[i]), True, (30, 30, 30))
-            tela.blit(texto, (rect.x + rect.width  // 2 - texto.get_width()  // 2,
-                              rect.y + rect.height // 2 - texto.get_height() // 2))
-            
+            tela.blit(texto, (rect.x + rect.width  // 2 - texto.get_width()  // 2, rect.y + rect.height // 2 - texto.get_height() // 2))
             fonte_mini = pygame.font.SysFont("georgia", max(12, TAM // 5), bold=True)
             texto_mini = fonte_mini.render(str(jogo.cartas[i]), True, (50, 50, 50))
             tela.blit(texto_mini, (rect.x + 8, rect.y + 6))
@@ -146,6 +141,7 @@ def desenhar():
             pygame.draw.circle(tela, (218, 165, 32), rect.center, rect.width // 4, 2)
             pygame.draw.circle(tela, (218, 165, 32), rect.center, rect.width // 6, 1)
 
+    # Textos do HUD
     texto_nome   = fonte.render(f"Jogador: {nome_jogador}", True, BRANCO)
     texto_pontos = fonte.render(f"Pontos: {jogo.pontuacao()}", True, BRANCO)
     texto_vida   = fonte.render(f"Vidas: {jogo.vida_total()}", True, BRANCO)
@@ -157,6 +153,61 @@ def desenhar():
     tela.blit(texto_nome,   (10, 10))
     tela.blit(texto_pontos, (10, 40))
     tela.blit(texto_vida,   (10, 70))
+
+    # Desenhar o Botão de Voltar no canto superior direito
+    btn_voltar_rect = pygame.Rect(LARGURA - 180, 20, 160, 45)
+    mouse_pos = pygame.mouse.get_pos()
+    
+    # Efeito hover (muda de cor se o mouse passar por cima)
+    cor_btn_voltar = (200, 50, 50) if btn_voltar_rect.collidepoint(mouse_pos) else (150, 30, 30)
+    
+    pygame.draw.rect(tela, cor_btn_voltar, btn_voltar_rect, border_radius=8)
+    pygame.draw.rect(tela, BRANCO, btn_voltar_rect, 2, border_radius=8) # Bordinha branca
+    
+    txt_btn = fonte_info.render("Sair do Jogo", True, BRANCO)
+    tela.blit(txt_btn, (btn_voltar_rect.centerx - txt_btn.get_width() // 2, btn_voltar_rect.centery - txt_btn.get_height() // 2))
+
+def desenhar_modal_confirmacao():
+    """Desenha a tela flutuante perguntando se o jogador quer mesmo voltar."""
+    # Fundo escurecido
+    overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    tela.blit(overlay, (0, 0))
+
+    # Caixinha central
+    pw, ph = 500, 250
+    px, py = (LARGURA - pw) // 2, (ALTURA - ph) // 2
+    
+    pygame.draw.rect(tela, (20, 30, 40), (px, py, pw, ph), border_radius=15)
+    pygame.draw.rect(tela, (218, 165, 32), (px, py, pw, ph), 3, border_radius=15) # Borda dourada
+
+    # Textos
+    t1 = fonte.render("Deseja mesmo voltar?", True, BRANCO)
+    t2 = fonte_info.render("Seu progresso atual será perdido!", True, (255, 100, 100))
+    tela.blit(t1, (LARGURA // 2 - t1.get_width() // 2, py + 40))
+    tela.blit(t2, (LARGURA // 2 - t2.get_width() // 2, py + 90))
+
+    # Pegar posição do mouse para efeito Hover
+    mouse_pos = pygame.mouse.get_pos()
+
+    # Botões
+    btn_voltar = pygame.Rect(px + 40, py + 150, 190, 55)
+    btn_continuar = pygame.Rect(px + 270, py + 150, 190, 55)
+
+    cor_voltar = (200, 50, 50) if btn_voltar.collidepoint(mouse_pos) else (150, 30, 30)
+    cor_continuar = (50, 200, 50) if btn_continuar.collidepoint(mouse_pos) else (30, 150, 30)
+
+    pygame.draw.rect(tela, cor_voltar, btn_voltar, border_radius=8)
+    pygame.draw.rect(tela, cor_continuar, btn_continuar, border_radius=8)
+
+    t_voltar = fonte_info.render("Voltar", True, BRANCO)
+    t_continuar = fonte_info.render("Continuar", True, BRANCO)
+
+    tela.blit(t_voltar, (btn_voltar.centerx - t_voltar.get_width() // 2, btn_voltar.centery - t_voltar.get_height() // 2))
+    tela.blit(t_continuar, (btn_continuar.centerx - t_continuar.get_width() // 2, btn_continuar.centery - t_continuar.get_height() // 2))
+
+    # Retorna as coordenadas dos botões para verificar o clique depois
+    return btn_voltar, btn_continuar
 
 
 def desenhar_tela_inicial():
@@ -223,8 +274,7 @@ def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
     cor_btn = (50, 180, 50) if btn_rect.collidepoint(mouse_pos) else (30, 130, 30)
     pygame.draw.rect(tela, cor_btn, btn_rect, border_radius=10)
     t_btn = fonte.render("Jogar Novamente", True, BRANCO)
-    tela.blit(t_btn, (btn_rect.centerx - t_btn.get_width() // 2,
-                      btn_rect.centery - t_btn.get_height() // 2))
+    tela.blit(t_btn, (btn_rect.centerx - t_btn.get_width() // 2, btn_rect.centery - t_btn.get_height() // 2))
     return btn_rect
 
 def desenhar_tela_vitoria(tempo_ms):
@@ -237,24 +287,16 @@ def desenhar_tela_vitoria(tempo_ms):
         raio = 5 + int(3 * math.sin(tempo_ms / 200 + k))
         pygame.draw.circle(tela, AMARELO, (sx, sy), raio)
 
-    return _desenhar_painel_central(
-        cor_fundo   = (20, 60, 20), cor_borda = (0, 220, 80),
-        titulo_txt  = "VITÓRIA!", cor_titulo = (80, 255, 120),
-        subtitulo_txt = f"Parabéns, {nome_jogador}!", pontuacao = jogo.pontuacao(),
-        tempo_ms    = tempo_ms,
-    )
+    return _desenhar_painel_central((20, 60, 20), (0, 220, 80), "VITÓRIA!", (80, 255, 120),
+                                    f"Parabéns, {nome_jogador}!", jogo.pontuacao(), tempo_ms)
 
 def desenhar_tela_derrota(tempo_ms):
     desenhar()   
     if tempo_ms < 600:
         shake = int(6 * math.sin(tempo_ms / 40) * max(0, 1 - tempo_ms / 600))
         tela.scroll(shake, 0)
-    return _desenhar_painel_central(
-        cor_fundo   = (60, 10, 10), cor_borda = (220, 40, 40),
-        titulo_txt  = "FIM DE JOGO", cor_titulo = (255, 80, 80),
-        subtitulo_txt = f"Tente de novo, {nome_jogador}!", pontuacao = jogo.pontuacao(),
-        tempo_ms    = tempo_ms,
-    )
+    return _desenhar_painel_central((60, 10, 10), (220, 40, 40), "FIM DE JOGO", (255, 80, 80),
+                                    f"Tente de novo, {nome_jogador}!", jogo.pontuacao(), tempo_ms)
 
 # ─── Helpers de interação ─────────────────────────────────────────────────────
 
@@ -274,11 +316,12 @@ def clique(pos):
             jogo.selecionar(i)
 
 def reiniciar_jogo():
-    global estado, jogo, timer_fim, COLUNAS, TAM, MARGEM, tempo_espera, particulas
+    global estado, jogo, timer_fim, COLUNAS, TAM, MARGEM, tempo_espera, particulas, mostrar_confirmacao
     estado = "menu"
     jogo   = None
     timer_fim = 0
     tempo_espera = 0
+    mostrar_confirmacao = False # Zera a confirmação pra não abrir o menu bugado
     particulas.clear()
     COLUNAS, TAM, MARGEM = GRID_CONFIG["facil"]
 
@@ -303,9 +346,28 @@ while rodando:
                     estado = "jogando"
 
             elif estado == "jogando":
-                # Só permite o clique se o jogo não estiver pausado esperando você ver a carta
-                if tempo_espera == 0:
-                    clique(pos)
+                # Se a janela de confirmação estiver aberta, os botões que valem são os dela
+                if mostrar_confirmacao:
+                    pw, ph = 500, 250
+                    px, py = (LARGURA - pw) // 2, (ALTURA - ph) // 2
+                    
+                    # Recria os retângulos virtuais para verificar o clique
+                    btn_voltar = pygame.Rect(px + 40, py + 150, 190, 55)
+                    btn_continuar = pygame.Rect(px + 270, py + 150, 190, 55)
+
+                    if btn_voltar.collidepoint(pos):
+                        reiniciar_jogo() # Volta para o menu zerando tudo
+                    elif btn_continuar.collidepoint(pos):
+                        mostrar_confirmacao = False # Fecha a janela e volta pro jogo
+                
+                # Se a janela não estiver aberta e as cartas não estiverem no delay
+                elif tempo_espera == 0:
+                    btn_sair = pygame.Rect(LARGURA - 180, 20, 160, 45)
+                    
+                    if btn_sair.collidepoint(pos):
+                        mostrar_confirmacao = True # Abre o modal
+                    else:
+                        clique(pos) # Clica nas cartas normalmente
 
             elif estado in ("vitoria", "derrota"):
                 py_painel = (ALTURA - 340) // 2
@@ -320,31 +382,35 @@ while rodando:
 
     elif estado == "jogando":
         desenhar()
-        atualizar_e_desenhar_particulas() # Efeito de explosão fica por cima das cartas
+        
+        # Só atualiza partículas e regras do jogo se a tela de confirmação NÃO estiver aberta
+        if not mostrar_confirmacao:
+            atualizar_e_desenhar_particulas() 
 
-        # Assim que clica na 2ª carta, salva o tempo e verifica se explodiu
-        if len(jogo.selecionadas) == 2 and tempo_espera == 0:
-            tempo_espera = tempo_agora
-            c1, c2 = jogo.selecionadas
-            if jogo.cartas[c1] == jogo.cartas[c2]: # Se acertou o par
-                gerar_explosao(c1)
-                gerar_explosao(c2)
+            if len(jogo.selecionadas) == 2 and tempo_espera == 0:
+                tempo_espera = tempo_agora
+                c1, c2 = jogo.selecionadas
+                if jogo.cartas[c1] == jogo.cartas[c2]: 
+                    gerar_explosao(c1)
+                    gerar_explosao(c2)
 
-        # Só esconde/verifica as cartas DEPOIS de 1.2 segundos (1200 ms)
-        if tempo_espera > 0 and tempo_agora - tempo_espera > 1200:
-            jogo.verificar()
-            tempo_espera = 0
+            if tempo_espera > 0 and tempo_agora - tempo_espera > 1200:
+                jogo.verificar()
+                tempo_espera = 0
 
-        # Verifica se o jogo acabou
-        if jogo.venceu() and tempo_espera == 0:
-            salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
-            timer_fim = tempo_agora
-            estado = "vitoria"
+            if jogo.venceu() and tempo_espera == 0:
+                salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
+                timer_fim = tempo_agora
+                estado = "vitoria"
 
-        elif jogo.perdeu() and tempo_espera == 0:
-            salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
-            timer_fim = tempo_agora
-            estado = "derrota"
+            elif jogo.perdeu() and tempo_espera == 0:
+                salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
+                timer_fim = tempo_agora
+                estado = "derrota"
+        
+        # Se a tela de confirmação foi acionada, desenha ela por cima das cartas
+        else:
+            desenhar_modal_confirmacao()
 
     elif estado == "vitoria":
         tempo_decorrido = tempo_agora - timer_fim
