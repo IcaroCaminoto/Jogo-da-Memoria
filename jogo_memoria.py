@@ -1,14 +1,14 @@
 import random
-
+import time
 
 def verificar_par(c1, c2):
     return c1 == c2
 
 def criar_cartas(nivel):
     config = {
-        "facil": 8,
-        "medio": 16,
-        "dificil": 24
+        "facil": 6,
+        "medio": 9,
+        "dificil": 12
     }
 
     quantidade_pares = config[nivel]
@@ -22,13 +22,16 @@ def criar_cartas(nivel):
     return cartas
 
 class JogoMemoria:
+
+    acertos_consecutivos = []
+
     def __init__(self, nivel="facil"):
         self.cartas = criar_cartas(nivel)
         self.reveladas = [False] * len(self.cartas)
         self.selecionadas = []
         self._pontos = 0
         self._vidas = 10
-        
+
     def selecionar(self, index):
         if self.reveladas[index] or len(self.selecionadas) >= 2:
             return
@@ -41,11 +44,23 @@ class JogoMemoria:
             i1, i2 = self.selecionadas
 
             if verificar_par(self.cartas[i1], self.cartas[i2]):
-                self._pontos += 100
+                if len(self.acertos_consecutivos) >= 1:
+                    self._pontos += 100 * (2 ** len(self.acertos_consecutivos))
+                    self.acertos_consecutivos.append(True)
+                    
+                    # Se o jogador acertar 2 pares seguidos, ele ganha 1 vida extra
+                    if len(self.acertos_consecutivos) % 2 == 0:
+                        if self._vidas < 10:  # Trava: não passa das 10 vidas iniciais
+                            self._vidas += 1
+
+                else:
+                    self._pontos += 100
+                    self.acertos_consecutivos.append(True)
             else:
                 self.reveladas[i1] = False
                 self.reveladas[i2] = False
                 self._vidas -= 1
+                self.acertos_consecutivos.clear() # Errou, quebra a corrente de acertos
 
             self.selecionadas = []
 

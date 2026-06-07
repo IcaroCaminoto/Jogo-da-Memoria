@@ -1,8 +1,10 @@
 import pygame
 import math
 import random
+import sys
+from datetime import datetime
 from jogo_memoria import JogoMemoria
-from loguin import tela_login, salvar_dados
+from loguin import tela_login, salvar_dados_json, salvar_resultado_txt
 
 pygame.init()
 
@@ -25,11 +27,9 @@ VERDE   = (0, 200, 0)
 AMARELO = (255, 255, 0)
 VERMELHO = (200, 0, 0)
 
-# Tela de login
-nome_jogador = tela_login(tela)
-
-# Estado do jogo
-estado = "menu"
+# Tela inicial
+estado = "login" 
+nome_jogador = "" # Começa vazio
 nivel_escolhido = "facil"
 jogo = None
 timer_fim = 0          
@@ -236,6 +236,23 @@ def desenhar_tela_inicial():
         texto = fonte.render(dados["label"], True, BRANCO)
         tela.blit(texto, (rect.x + rect.width  // 2 - texto.get_width()  // 2,
                           rect.y + rect.height // 2 - texto.get_height() // 2))
+    
+    # Botão para trocar de usuário
+    btn_trocar_usuario = pygame.Rect((LARGURA - 200) // 2, 600, 200, 50)
+    mouse_pos = pygame.mouse.get_pos()
+    
+    # hover effect botão trocar usuário
+    if btn_trocar_usuario.collidepoint(mouse_pos):
+        cor_btn_trocar = (180, 50, 50)
+    else:
+        cor_btn_trocar = (120, 30, 30)
+
+    pygame.draw.rect(tela, cor_btn_trocar, btn_trocar_usuario, border_radius=10)
+    pygame.draw.rect(tela, (218, 165, 32), btn_trocar_usuario, 2, border_radius=10) # Borda dourada
+    
+    texto_trocar = fonte_info.render("Trocar Jogador", True, BRANCO)
+    tela.blit(texto_trocar, (btn_trocar_usuario.centerx - texto_trocar.get_width() // 2, 
+                             btn_trocar_usuario.centery - texto_trocar.get_height() // 2))
 
 def _desenhar_painel_central(cor_fundo, cor_borda, titulo_txt, cor_titulo,
                              subtitulo_txt, pontuacao, tempo_ms):
@@ -333,6 +350,7 @@ while rodando:
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             rodando = False
+            sys.exit()  # Encerra o programa completamente
 
         if evento.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
@@ -344,6 +362,10 @@ while rodando:
                     COLUNAS, TAM, MARGEM = GRID_CONFIG[nivel_escolhido]
                     jogo = JogoMemoria(nivel_escolhido)
                     estado = "jogando"
+                
+                botao_trocar_usuario = pygame.Rect((LARGURA - 200) // 2, 600, 200, 50)
+                if botao_trocar_usuario.collidepoint(pos):
+                    estado = "login" # manda de volta pra tela de login
 
             elif estado == "jogando":
                 # Se a janela de confirmação estiver aberta, os botões que valem são os dela
@@ -377,7 +399,14 @@ while rodando:
 
     # ── Renderização por estado ──
 
-    if estado == "menu":
+    if estado == "login":
+        novo_nome = tela_login(tela) 
+        
+        if novo_nome: 
+            nome_jogador = novo_nome
+            estado = "menu"
+
+    elif estado == "menu":
         desenhar_tela_inicial()
 
     elif estado == "jogando":
@@ -399,12 +428,20 @@ while rodando:
                 tempo_espera = 0
 
             if jogo.venceu() and tempo_espera == 0:
-                salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
+                data_atual = datetime.now().strftime("%d/%m/%Y")
+                hora_atual = datetime.now().strftime("%H:%M:%S")
+                tempo_jogado = tempo_agora // 1000 # Tempo em segundos
+                salvar_dados_json(nome_jogador, nivel_escolhido, jogo.pontuacao())
+                salvar_resultado_txt(nome_jogador, data_atual, hora_atual, jogo.pontuacao(), tempo_jogado, nivel_escolhido, "Vitória")
                 timer_fim = tempo_agora
                 estado = "vitoria"
 
             elif jogo.perdeu() and tempo_espera == 0:
-                salvar_dados(nome_jogador, nivel_escolhido, jogo.pontuacao())
+                data_atual = datetime.now().strftime("%d/%m/%Y")
+                hora_atual = datetime.now().strftime("%H:%M:%S")
+                tempo_jogado = tempo_agora // 1000 # Tempo em segundos
+                salvar_dados_json(nome_jogador, nivel_escolhido, jogo.pontuacao())
+                salvar_resultado_txt(nome_jogador, data_atual, hora_atual, jogo.pontuacao(), tempo_jogado, nivel_escolhido, "Derrota")
                 timer_fim = tempo_agora
                 estado = "derrota"
         
