@@ -1,2 +1,2 @@
 # Jogo-do-que-mesmo?
-Repositório do melhor jogo de gestão da memória do Brasil
+Repositório do melhor jogo da memória do Brasil
