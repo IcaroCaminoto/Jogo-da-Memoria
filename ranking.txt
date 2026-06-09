@@ -9,3 +9,4 @@ Teste;07/06/2026;19:39:31;800;105;facil;Vitória
 Messi;07/06/2026;20:20:49;1000;71;facil;Vitória
 Messi;07/06/2026;20:23:38;2200;240;medio;Vitória
 Cristiano R7;07/06/2026;20:25:43;1400;365;medio;Vitória
+Gabriel Dudeck;09/06/2026;20:07:23;1800;84;facil;Vitória

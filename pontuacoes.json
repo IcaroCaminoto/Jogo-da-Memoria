@@ -30,39 +30,21 @@
         "pontuacao": 400
     },
     {
-        "nome": "Teste",
-        "horario": "07/06/2026 18:21:25",
+        "nome": "Ícaro",
+        "horario": "07/06/2026 18:19:30",
+        "nivel": "medio",
+        "pontuacao": 600
+    },
+    {
+        "nome": "Ícaro",
+        "horario": "07/06/2026 18:20:15",
         "nivel": "dificil",
-        "pontuacao": 300
+        "pontuacao": 400
     },
     {
-        "nome": "Teste",
-        "horario": "07/06/2026 18:22:28",
-        "nivel": "medio",
-        "pontuacao": 900
-    },
-    {
-        "nome": "Teste",
-        "horario": "07/06/2026 19:39:31",
-        "nivel": "facil",
-        "pontuacao": 800
-    },
-    {
-        "nome": "Messi",
-        "horario": "07/06/2026 20:20:49",
-        "nivel": "facil",
-        "pontuacao": 1000
-    },
-    {
-        "nome": "Messi",
-        "horario": "07/06/2026 20:23:38",
-        "nivel": "medio",
-        "pontuacao": 2200
-    },
-    {
-        "nome": "Cristiano R7",
-        "horario": "07/06/2026 20:25:43",
-        "nivel": "medio",
-        "pontuacao": 1400
+        "nome": "Ícaro",
+        "horario": "07/06/2026 18:21:00",
+        "nivel": "dificil",
+        "pontuacao": 600
     }
 ]
